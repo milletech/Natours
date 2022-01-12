@@ -1,85 +1,196 @@
 const fs=require("fs");
-const tours=JSON.parse(fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`,"utf-8"));
+const Tour=require("./../models/tourModel")
+const APIFeatures=require("./../utils/apiFeatures");
+const AppError=require("./../utils/appError");
+
 
 // Function Handlers
+exports.topCheap=(req,res,next)=>{
+    req.query.sort="-ratingsAverage,price";
+    req.query.limit="5";
+    req.query.fields="name,price,difficulty,ratingsAverage";
+    next()
+}
 
-exports.checkBody=(req,res,next)=>{
-    if(!req.body.name || !req.body.price){
-        return res.status(400).json({
+
+exports.getAllTours=async(req,res)=>{
+
+    try{
+        const features=new APIFeatures(Tour.find(),req.query).filter().limitFields().paginate()
+        const tours=await features.query;
+
+        // Send Response
+        res.status(200).json({
+            status:"success",
+            results:tours.length,
+            data:{
+                tours
+            }
+        })
+    }catch(err){
+        res.status(404).json({
             status:"failed",
-            message:"Invalid input"
+            message:err
         })
     }
 
-    next();
 }
-exports.checkID=(req,res,next,val)=>{
-    const id=req.params.id*1;
+exports.getTour=async(req,res,next)=>{
 
-    console.log(val)
-    const tour=tours.find(el=>el.id===id);
+    try{
+        const tour=await Tour.findById(req.params.id);
 
-    if(!tour) return res.status(404).json({status:"ID not found"})
-    next()
-
-}
-exports.getAllTours=(req,res)=>{
-    res.status(200).json({
-        status:"success",
-        result:tours.length,
-        data:{
-            tours:tours
+        if(!tour) {
+            return next(new AppError("Not tour found with that ID",404))
         }
-    })
+        res.status(200).json({
+            status:"success",
+            data:{
+                tour
+            }
+        })
+    }catch(err){
+        res.status(404).json({
+            status:"failed",
+            message:err
+        }) 
+    }
+
+
 }
-exports.getTour=(req,res)=>{
 
-    const id=req.params.id*1;
-    const tour=tours.find(el=>el.id===id);
+exports.createTour=async (req,res)=>{
 
-    res.status(200).json({
-        status:"success",
-        data:{
-            tour
-        }
-    })
-}
-
-exports.createTour=(req,res)=>{
-    const newID=tours[tours.length-1].id+1;
-
-    const newTour=Object.assign(req.body,{id:newID});
-    tours.push(newTour);
-
-    // Overwrite the tours file
-    // We use the async version because the code in the callback function will run in the event loop
-    // Number 1 Node JS rule is that we don't block the event loop
-    fs.writeFileSync(`${__dirname}/dev-data/data/tours-simple.json`, JSON.stringify(tours),err=>{
-        console.log(err)
-    })
-
-    res.status(201).json({
+    try{
+        const newTour=await Tour.create(req.body)
+        res.status(201).json({
         status:"Sucess",
-        tour:{
-            tour:newTour
-        }
-    })
-}
-
-exports.updateTour=(req,res)=>{
-
-    res.status(200).json({
-        status:"success",
         data:{
-            tour:"<Updated Tour here...>"
-        }
-    })
+            tour:newTour
+        }})
+    }catch(err){
+        res.status(400).json({
+            status:"Failed",
+            message:err
+        })
+    }
 }
 
-exports.deleteTour=(req,res)=>{
+exports.updateTour=async (req,res)=>{
 
-    res.status(204).json({
-        status:"success",
-        data:null
-    })
+    try{
+        const tour=await Tour.findByIdAndUpdate(req.params.id,req.body,{
+            new:true,
+            runValidators:true
+        })
+        if(!tour) {
+            return next(new AppError("Not tour found with that ID",404))
+        }
+        res.status(200).json({
+            status:"success",
+            data:{
+                tour
+            }
+        })
+    }catch(err){
+        res.status(400).json({
+            status:"Failed",
+            message:err
+        })
+    }
+
+
+}
+
+exports.deleteTour=async (req,res)=>{
+
+    try{
+        const tour=await Tour.findByIdAndDelete(req.params.id)
+        if(!tour) {
+            return next(new AppError("Not tour found with that ID",404))
+        }
+        res.status(204).json({
+            status:"success",
+            data:null
+        })
+    }catch(err){
+        res.status(404).json({
+            status:"Failed",
+            message:err
+        })
+    }
+}
+
+exports.getTourStats=async (req,res)=>{
+    try{
+        const stats=await Tour.aggregate([
+            {   
+                // Filter
+                $match:{ratingsAverage:{$gte:4.5}}
+            },
+            {
+                // Group
+                $group:{
+                    _id:'$difficulty',
+                    numTours:{ $sum: 1},
+                    avgRating: { $avg: '$ratingsAverage'},
+                    avgPrice:{$avg: '$price'},
+                    minPrice:{$min: '$price'},
+                    maxPrice:{$max:'$price'}
+                }
+            },{
+                // Sort
+                $sort:{avgPrice:1}
+            }
+        ])
+        res.status(200).json({
+            status:"Sucess",
+            data:{
+                stats
+            }})
+    }catch(err){
+        res.status(404).json({
+            status:"Failed",
+            message:err
+        })
+    }
+}
+
+exports.monthlyTours=async (req,res)=>{
+    const year=req.params.year*1;
+    const plan=await Tour.aggregate([
+        {
+            $unwind:"$startDates"
+        },
+        {
+            $addFields: {
+                startYear: { $year: '$startDates' },
+                startMonth: { $month: '$startDates' }
+            }
+        },
+        {
+            $match: {
+                startYear: { $eq: year }
+            }
+        },
+        {
+            $group:{
+                _id:{$month:'startDates'}
+            }
+        }
+    ])
+    try{
+        res.status(200).json({
+            status:"Sucess",
+            year,
+            data:{
+                plan
+            }
+        })
+    }catch(err){
+        res.status(404).json({
+            status:"Failed",
+            message:err
+        })
+    }
 }

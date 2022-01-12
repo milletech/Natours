@@ -1,5 +1,5 @@
 const fs=require("fs");
-const Tour=require("./../../model/tourModel");
+const Tour=require("./../../models/tourModel");
 const dotenv=require("dotenv");
 const mongoose=require("mongoose");
 dotenv.config({"path":"./config.env"});
@@ -34,10 +34,11 @@ const importData=async()=>{
     try {
         await Tour.create(tours);
         console.log("Data successfully loaded!")
-        process.exit()
+        
     } catch (error) {
         console.log(error)
     }
+    process.exit()
 }
 
 // Delete all data from collection
@@ -47,10 +48,11 @@ const deleteData=async()=>{
     try {
         await Tour.deleteMany();
         console.log("Data successfully deleted!")
-        process.exit()
+        
     } catch (error) {
         console.log(error)
     }
+    process.exit()
 }
 console.log(process.argv);
 

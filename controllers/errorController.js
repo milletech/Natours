@@ -1,15 +1,29 @@
 
-const  AppError=require("./../utils/appError");
+const AppError=require("./../utils/appError");
+
+const handleCastErrorDB=err=>{
+    const message=`Invalid ${err.path}: ${err.value}`;
+    return new AppError(message,400)
+}
 
 const handleDuplicateFieldsDB=err=>{
-    const value=err.errmsg.match(/([""])(\\?.)*?\1/)[0]
-    const message=`Duplicate field value: x. Please use another value`;
+    const value=err.errmsg.match(/(["'])(?:(?=(\\?))\2.)*?\1/)[0];
     console.log(value)
-    return new AppError(message,400);
+    const message=`Duplicate field value:${value}.Please use another value`;
+    return new AppError(message,400)
 }
-// Development Error:Send back every detail of the error
-const sendErrorDev=(err, res)=>{
-    
+
+const handleValidationErrorDB=err=>{
+    const errors=Object.values(err.errors).map(el=>el.message);
+    const message=`Invalid input data ${errors.join(". ")}`;
+    return new AppError(message,400)
+}
+
+const handleJWTError=err=>new AppError("Invalid token. Please log in again!",401);
+
+const handleJWTExpiredError=err=>new AppError("Your token has expired! Please login again",401)
+
+const sendErrorDev=(err,res)=>{
     res.status(err.statusCode).json({
         status: err.status,
         error:err,
@@ -18,24 +32,23 @@ const sendErrorDev=(err, res)=>{
     })
 }
 
-// Production Error: Send friendly message to the client
-const sendErrorProd=(err,res)=>{
-    
-    // Operartional Error
+const sendErrorProd=(err, res)=>{
+    // Operational Error
     if(err.isOperational){
         res.status(err.statusCode).json({
-            status:err.status,
-            message:err.message,
+            status: err.status,
+            message:err.message
         })
-    
-    }else{
-    // Programming Error
-    re.status(500).json({
-        status:"error",
-        message:"Something went very wrong"
-    })
 
+    // Programming error
+    }else{
+        console.error(err)
+        res.status(500).json({
+            status:"error",
+            message:"Something went very wrong"
+        })
     }
+
 }
 
 
@@ -45,13 +58,14 @@ module.exports=(err,req,res,next)=>{
     err.status=err.status || "error";
 
     if(process.env.NODE_ENV === "development"){
-        console.log("Development error response")
         sendErrorDev(err,res)
     }else if(process.env.NODE_ENV === "production"){
-        console.log("Production error response")
-        let error={...err}
-        // Handling duplicate key errors 
-        if(error.code === 11000) error= handleDuplicateFieldsDB(error)
-        sendErrorProd(error,res)
+        if(err.name === "CastError") err=handleCastErrorDB(err);
+        if(err.code === 11000) err=handleDuplicateFieldsDB(err);
+        if(err.name === "ValidationError") err=handleValidationErrorDB(err);
+        if(err.name === "JsonWebTokenError") err=handleJWTError(err);
+        if(err.name === "TokenExpiredError") err=handleJWTExpiredError(err);
+
+        sendErrorProd(err,res)
     }
 }

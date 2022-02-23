@@ -1,7 +1,6 @@
-const fs=require("fs");
 const Tour=require("./../models/tourModel")
-const APIFeatures=require("./../utils/apiFeatures");
 const AppError=require("./../utils/appError");
+const factory=require("./handlerFactory");
 
 const catchAsync=require("./../utils/catchAsync")
 
@@ -14,72 +13,12 @@ exports.topCheap=(req,res,next)=>{
     next()
 }
 
+exports.getAllTours=factory.getAll(Tour)
+exports.getTour=factory.getOne(Tour,{path:"reviews"});
+exports.createTour=factory.createOne(Tour);
+exports.updateTour=factory.updateOne(Tour);
+exports.deleteTour=factory.deleteOne(Tour)
 
-exports.getAllTours=catchAsync(async(req,res,next)=>{
-    const features=new APIFeatures(Tour.find(),req.query).filter().limitFields().paginate()
-    const tours=await features.query;
-
-    // Send Response
-    res.status(200).json({
-        status:"success",
-        results:tours.length,
-        data:{
-            tours
-        }
-    })
-})
-exports.getTour=catchAsync(async(req,res,next)=>{
-
-    const tour=await Tour.findById(req.params.id).populate("reviews")
-
-    if(!tour) {
-        return next(new AppError("Not tour found with that ID",404))
-    }
-    res.status(200).json({
-        status:"success",
-        data:{
-            tour
-        }
-    })
-})
-
-exports.createTour=catchAsync(async (req,res,next)=>{
-    const newTour=await Tour.create(req.body)
-    res.status(201).json({
-    status:"Sucess",
-    data:{
-        tour:newTour
-    }})
-})
-
-exports.updateTour=catchAsync(async (req,res,next)=>{
-
-    const tour=await Tour.findByIdAndUpdate(req.params.id,req.body,{
-        new:true,
-        runValidators:true
-    })
-    if(!tour) {
-        return next(new AppError("Not tour found with that ID",404))
-    }
-    res.status(200).json({
-        status:"success",
-        data:{
-            tour
-        }
-    })
-})
-
-exports.deleteTour=catchAsync(async (req,res,next)=>{
-
-    const tour=await Tour.findByIdAndDelete(req.params.id)
-    if(!tour) {
-        return next(new AppError("Not tour found with that ID",404))
-    }
-    res.status(204).json({
-        status:"success",
-        data:null
-    })
-})
 
 exports.getTourStats=catchAsync(async (req,res,next)=>{
     const stats=await Tour.aggregate([
@@ -140,4 +79,65 @@ exports.monthlyTours=catchAsync(async (req,res,next)=>{
             plan
         }
     })
+})
+
+exports.getToursWithin=catchAsync(async(req,res,next)=>{
+    const {distance,latlng,unit}=req.params;
+    const [lat,lng]=latlng.split(",");
+
+    const radius=unit==="mi"?distance/3963.2:distance/6378.1;
+    if(!lat || !lng){
+        return next(new AppError("Please provide your line if latitude and longitude",400))
+    }
+
+    const tours=await Tour.find({startLocation:{$geoWithin:{$centerSphere:[[lng,lat],radius]}}})
+
+    res.status(200).json({
+        status:"success",
+        results:tours.length,
+        data:{
+            data:tours
+        }
+    })
+});
+
+exports.getDistances=catchAsync(async(req,res,next)=>{
+    const {latlng,unit}=req.params;
+    const [lat,lng]=latlng.split(",");
+
+    const multiplier=unit==="mi"? 0.000621371:0.01;
+
+    if(!lat || !lng){
+        return next(new AppError("Please provide your line if latitude and longitude",400))
+    }
+
+    // Geospatial aggregation pipeline
+    const distances=await Tour.aggregate([
+        {
+            // GeoNear Must Always Be the First Step in the Geospatial aggregation pipeline
+            $geoNear:{
+                near:{
+                    type:'Point',
+                    coordinates:[lng*1,lat*1]
+                },
+                distanceField:"distance",
+                distanceMultiplier:multiplier
+            }
+        },
+        {
+            $project:{
+                distance:1,
+                name:1
+            }
+        }
+    ])
+
+
+    res.status(200).json({
+        status:"Success",
+        data:{
+            data:distances
+        }
+    })
+
 })

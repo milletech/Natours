@@ -5,7 +5,8 @@ const rateLimit=require("express-rate-limit");
 const helmet=require("helmet");
 const mongoSanitize=require("express-mongo-sanitize");
 const xss=require("xss-clean");
-const hpp=require("hpp")
+const hpp=require("hpp");
+const path=require("path");
 
 const AppError=require("./utils/appError");
 const globalErrorHandler=require("./controllers/errorController")
@@ -13,12 +14,20 @@ const app=express();
 const tourRouter=require("./routes/tourRoutes");
 const userRouter=require("./routes/userRoutes");
 const reviewRouter=require("./routes/reviewRoutes");
+const viewRouter=require("./routes/viewRoutes");
 
 // Global Middlewares
 
 
 // Body Parser
 app.use(express.json());
+
+// Setting up PUG
+app.set("view engine",'pug');
+app.set("views",path.join(__dirname,"views"))
+
+// Serving static files
+app.use(express.static(`${__dirname}/public`));
 
 // Set security HTTP headers
 app.use(helmet())
@@ -46,10 +55,13 @@ app.use(xss())
 
 app.use(hpp())
 
-// Serving static files
-app.use(express.static(`${__dirname}/public`));
+
 
 // Routers
+
+
+
+app.get("/",viewRouter)
 app.use("/api/v1/tours",tourRouter);
 app.use("/api/v1/users",userRouter);
 app.use("/api/v1/reviews",reviewRouter);

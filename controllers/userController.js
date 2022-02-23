@@ -1,8 +1,9 @@
-const fs=require("fs");
+
 const catchAsync = require("../utils/catchAsync");
 const User=require("./../models/userModel");
 const APIFeatures=require("./../utils/apiFeatures");
 const AppError=require("./../utils/appError");
+const factory=require("./handlerFactory");
 
 const filterObj=(obj, ...allowedFields)=>{
     const newObj={};
@@ -12,26 +13,7 @@ const filterObj=(obj, ...allowedFields)=>{
 
     return newObj;
 }
-exports.getAllUsers=async(req,res)=>{
-    try{
-        const features=new APIFeatures(User.find())
-        const users=await features.query;
 
-        // Send Response
-        res.status(200).json({
-            status:"success",
-            results:users.length,
-            data:{
-                users
-            }
-        })
-    }catch(err){
-        res.status(404).json({
-            status:"failed",
-            message:err
-        })
-    }
-}
 
 exports.updateMe=catchAsync(async(req,res,next)=>{
 
@@ -58,6 +40,12 @@ exports.updateMe=catchAsync(async(req,res,next)=>{
     // 3) 
 });
 
+exports.getMe=(req,res,next)=>{
+    req.params.id=req.user.id;
+    next();
+}
+
+
 exports.deleteMe=catchAsync(async (req,res,next)=>{
 
     await User.findByIdAndUpdate(req.user.id,{active:false});
@@ -69,28 +57,14 @@ exports.deleteMe=catchAsync(async (req,res,next)=>{
 })
 
 
-
-exports.getUser=(req,res)=>{
-    res.status(500).json({
-        status:"Error",
-        message:"This route has not been implemented yet"
-    })
-}
 exports.createUser=(req,res)=>{
     res.status(500).json({
         status:"Error",
-        message:"This route has not been implemented yet"
+        message:"This route has not been implemented"
     })
 }
-exports.updateUSer=(req,res)=>{
-    res.status(500).json({
-        status:"Error",
-        message:"This route has not been implemented yet"
-    })
-}
-exports.deleteUser=(req,res)=>{
-    res.status(500).json({
-        status:"Error",
-        message:"This route has not been implemented yet"
-    })
-}
+exports.getUser=factory.getOne(User)
+exports.getAllUsers=factory.getAll(User)
+// Do Not update passwords with this
+exports.updateUser=factory.updateOne(User)
+exports.deleteUser=factory.deleteOne(User);

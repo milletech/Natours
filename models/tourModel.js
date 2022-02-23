@@ -102,6 +102,10 @@ const tourSchema=new mongoose.Schema({
     
 })
 
+tourSchema.index({price:1,ratingsAverage:-1});
+tourSchema.index({slug:1});
+tourSchema.index({startLocation:"2dsphere"})
+
 // Virtual Field
 tourSchema.virtual("durationWeeks",function(){
     return this.duration/7;

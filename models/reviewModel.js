@@ -3,7 +3,7 @@ const Tour=require("./tourModel");
 
 
 const reviewSchema=new mongoose.Schema({
-    reviewText:{
+    review:{
         type:String,
         trim:true,
         required:[true, 'A review must have a text']

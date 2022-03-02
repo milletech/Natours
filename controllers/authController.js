@@ -18,9 +18,9 @@ const createSendToken=(user, statusCode,res)=>{
         httpOnly:true
     };
 
-    if(process.env.NODE_ENV === "production") cookieOptions.secure=true;
+    if(process.env.NODE_ENV === "production") cookieOptions.secure= true;
 
-    res.cookie("jwt",token,cookieOptions)
+    res.cookie("jwt", token, cookieOptions)
 
     res.status(statusCode).json({
         status:"Success",
@@ -41,21 +41,8 @@ exports.signup=async (req,res,next)=>{
             passwordConfirm:req.body.passwordConfirm,
             passwordChangedAt:req.body.passwordChangedAt
         });
-
         // User is logged  in since the token is sent
-
         createSendToken(newUser,201,res)
-
-
-
-        // const token=signToken(newUser._id)
-        // res.status(201).json({
-        //     status:"success",
-        //     token,
-        //     data:{
-        //         user:newUser
-        //     }
-        // })
     }catch(err){
         res.status(400).json({
             status:"Failed",
@@ -73,14 +60,17 @@ exports.login=async (req,res,next)=>{
     // 2)Check if the user exists & the password is correct
     const user=await User.findOne({email}).select("+password");
     if(!user || !await user.correctPassword(password,user.password)){
-        return next(new AppError("Incorrect email or password",401))
+        return next(new AppError("Incorrect email or password",400))
     }
     // 3)If everything okay, send the Token to the client
     const token=signToken(user._id);
-    res.status(200).json({
-        status:"success",
-        token
-    })
+
+    createSendToken(user,200,res)
+
+    // res.status(200).json({
+    //     status:"success",
+    //     token
+    // })
 };
 
 
@@ -90,8 +80,12 @@ exports.protect=catchAsync(async (req,res,next)=>{
     // 1) Getting token and check of it's there
     if(req.headers.authorization && (req.headers.authorization).startsWith("Bearer")){
         token=req.headers.authorization.split(" ")[1];
+    }else if(req.cookies.jwt){
+        token=req.cookies.jwt;
     }
-    if(!token) return next(new AppError("You are not logged in, please log in to gain access",401))
+    if(!token){
+        return next(new AppError("You are not logged in, please log in to gain access",401))
+    } 
 
     // 2) Verification token 
     const decoded=await promisify(jwt.verify)(token, process.env.JWT_SECRET);

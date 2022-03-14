@@ -21,6 +21,10 @@ const viewRouter=require("./routes/viewRoutes");
 // Body Parser
 app.use(express.json());
 
+// Body Parser data from form submission
+
+app.use(express.urlencoded({extended:true,limit:"10kb"}))
+
 // Cookie Parser
 app.use(cookieParser());
 
@@ -56,10 +60,6 @@ app.use(xss())
 // Prevent parameter pollution, block duplicate fields in the req.params
 app.use(hpp())
 
-app.use((req,res,next)=>{
-    console.log(req.cookies)
-    next()
-})
 // Routers
 app.use("/",viewRouter)
 app.use("/api/v1/tours",tourRouter);

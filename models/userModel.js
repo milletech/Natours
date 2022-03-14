@@ -22,6 +22,7 @@ const userSchema=new mongoose.Schema({
     },
     photo:{
         type:String,
+        default:"default.jpg"
     },
     role:{
         type:String,
@@ -81,7 +82,7 @@ userSchema.pre("save",function(next){
 
 
 // Instance method=> This method is available to all user document
-userSchema.methods.correctPassword=async function(candidatePassword, userPassword){
+userSchema.methods.correctPassword=async function(candidatePassword,userPassword){
     return await bcrypt.compare(candidatePassword,userPassword)
 }
 

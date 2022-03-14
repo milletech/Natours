@@ -1,6 +1,9 @@
 
 const Tour=require("../models/tourModel");
+const User=require("../models/userModel");
 const catchAsync=require("../utils/catchAsync");
+const AppError=require("./../utils/appError");
+
 exports.getOverview=catchAsync(async(req,res)=>{
     // 1) Get Tour Data Collection
         const tours=await Tour.find();
@@ -17,20 +20,18 @@ exports.getOverview=catchAsync(async(req,res)=>{
     });
 });
 
-exports.getTour=catchAsync(async(req,res)=>{
+exports.getTour=catchAsync(async(req,res,next)=>{
     // 1) Get tour data
     let tour=await Tour.find({slug:req.params.slug}).populate({
         path:"reviews",
         fields:"review rating user"
     });
 
+    tour=tour[0];
 
-
-   tour=tour[0]
-
-   console.log(tour)
-
-    // const tour=await Tour.find({slug:req.params.slug});
+    if(!tour){
+        return next(new AppError("There is no tour with that name",404))
+    }
 
     // 2) Build Template
 
@@ -46,3 +47,24 @@ exports.getloginForm=(req,res)=>{
         title:"Login"
     });
 }
+exports.myAccount=(req,res)=>{
+    res.status(200).render("account",{
+        title:"My account"
+    })
+}
+
+exports.updateUserData=catchAsync(async(req,res,next)=>{
+    const updatedUser=await User.findByIdAndUpdate(req.user,{
+        name:req.body.name,
+        email:req.body.email
+    },{
+        new:true,
+        runValidators:true
+    });
+
+
+    res.status(200).render("account",{
+        title:"My account",
+        user:updatedUser
+    })
+})

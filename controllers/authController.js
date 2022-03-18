@@ -5,7 +5,8 @@ const catchAsync=require("./../utils/catchAsync")
 const AppError=require("./../utils/appError");
 const jwt=require("jsonwebtoken");
 const sendEmail=require("./../utils/email");
-const crypto=require("crypto")
+const crypto=require("crypto");
+const Email=require("./../utils/email");
 
 
 const signToken=id=>{
@@ -30,26 +31,22 @@ const createSendToken=(user, statusCode,res)=>{
         }
     })
 }
-exports.signup=async (req,res,next)=>{
-    try{
-        const newUser=await User.create({
-            name:req.body.name,
-            gender:req.body.gender,
-            email:req.body.email,
-            role:req.body.role,
-            password:req.body.password,
-            passwordConfirm:req.body.passwordConfirm,
-            passwordChangedAt:req.body.passwordChangedAt
-        });
-        // User is logged  in since the token is sent
-        createSendToken(newUser,201,res)
-    }catch(err){
-        res.status(400).json({
-            status:"Failed",
-            err:err.message
-        })
-    }
-}
+exports.signup=catchAsync(async (req,res,next)=>{
+    const newUser=await User.create({
+        name:req.body.name,
+        gender:req.body.gender,
+        email:req.body.email,
+        role:req.body.role,
+        password:req.body.password,
+        passwordConfirm:req.body.passwordConfirm,
+        passwordChangedAt:req.body.passwordChangedAt
+    });
+
+    const url=`${req.protocol}://${req.get('host')}/me`;
+    await new Email(newUser,url).sendWelcome()
+    // User is logged  in since the token is sent
+    createSendToken(newUser,201,res)
+})
 
 exports.login=async (req,res,next)=>{
     const {email,password}=req.body;
@@ -66,11 +63,6 @@ exports.login=async (req,res,next)=>{
     const token=signToken(user._id);
 
     createSendToken(user,200,res)
-
-    // res.status(200).json({
-    //     status:"success",
-    //     token
-    // })
 };
 
 exports.logout=(req,res)=>{
@@ -163,17 +155,13 @@ exports.forgotPassword=catchAsync(async(req,res,next)=>{
     await user.save({validateBeforeSave:false})
 
     // 3) Send it to the user's email
-    const resetURL =`${req.protocol}://${req.get("host")}/api/v1/users/resetPassword/${resetToken}`;
-    const message=`Forgot your password? Submit a PATCH request with your new password and passwordConfirm to:
-    ${resetURL}.\n If you didn't forget your password, please ignore this email!`;
+    
+    // const message=`Forgot your password? Submit a PATCH request with your new password and passwordConfirm to:
+    // ${resetURL}.\n If you didn't forget your password, please ignore this email!`;
 
     try{
-        await sendEmail({
-            email:user.email,
-            subject:"Your password reset token (valid for 10 min)",
-            message
-        })
-    
+        const resetURL =`${req.protocol}://${req.get("host")}/api/v1/users/resetPassword/${resetToken}`;
+        await new Email(user,resetURL).sendPasswordReset()
         res.status(200).json({
             status:"Success",
             message:"Token sent to email!"

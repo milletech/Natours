@@ -14,6 +14,7 @@ const AppError=require("./utils/appError");
 const globalErrorHandler=require("./controllers/errorController")
 const tourRouter=require("./routes/tourRoutes");
 const userRouter=require("./routes/userRoutes");
+const bookingRouter=require("./routes/bookingRoutes")
 const reviewRouter=require("./routes/reviewRoutes");
 const viewRouter=require("./routes/viewRoutes");
 
@@ -22,7 +23,6 @@ const viewRouter=require("./routes/viewRoutes");
 app.use(express.json());
 
 // Body Parser data from form submission
-
 app.use(express.urlencoded({extended:true,limit:"10kb"}))
 
 // Cookie Parser
@@ -63,6 +63,7 @@ app.use(hpp())
 // Routers
 app.use("/",viewRouter)
 app.use("/api/v1/tours",tourRouter);
+app.use("/api/v1/bookings",bookingRouter);
 app.use("/api/v1/users",userRouter);
 app.use("/api/v1/reviews",reviewRouter);
 

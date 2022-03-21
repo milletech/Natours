@@ -33,7 +33,7 @@ const upload=multer({
 exports.uploadUserPhoto=upload.single("photo");
 
 exports.resizeUserPhoto=catchAsync(async(req,res,next)=>{
-    console.log(req.file)
+    // console.log(req.file)
     if(!req.file) return next();
 
     req.file.filename=`user-${req.user.id}-${Date.now()}.jpeg`;
@@ -59,8 +59,8 @@ const filterObj=(obj, ...allowedFields)=>{
 
 exports.updateMe=catchAsync(async(req,res,next)=>{
 
-    console.log(req.body)
-    console.log(req.file)
+    // console.log(req.body)
+    // console.log(req.file)
     // 1) Create error if user POST password data
     if(req.body.password || req.body.passwordConfirm){
         return next(new AppError("This route is not for password update",400))
